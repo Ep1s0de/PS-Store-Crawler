@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>PS Store parser</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+  <link rel="stylesheet" href="/style.css">
+
+</head>
+<nav id="navbar">
+  <a id="parseallbutton" class="button-89" href="/#">Спарсить все цены</a>
+  <a id="deletepricebutton" class="button-89" href="/#">Удалить все цены</a>
+  <a id="cleandatabase" class="button-89" href="/#">Очистить базу</a>
+  <a id="excel" class="button-89" href="/#">Выгрузить CSV</a>
+</nav>
+
+<body>
+  <form id="add-game-form">
+    <input id="add-game-link">
+    </input>
+    <button class="button-89" id="add-game-button">Add</button>
+  </form>
+
+  <main>
+    <table id="table">
+      <thead>
+        <tr>
+          <th class="csv">
+            ID
+          </th>
+          <th class="csv">
+            Название
+          </th>
+          <th class="csv">
+            Последняя цена
+          </th>
+          <th class="csv">
+            Предпоследняя цена
+          </th>
+          <th>
+            База цен
+          </th>
+          <th>
+            Parse now
+          </th>
+          <th>
+            Store page
+          </th>
+          <th>
+            Delete
+          </th>
+        </tr>
+      </thead>
+      <tfoot>
+        <tr>
+          <th colspan='7'>
+            Created by @VardanMLK
+          </th>
+        </tr>
+      </tfoot>
+      <tbody id="row-parent">
+      </tbody>
+    </table>
+    <div class='detail'>
+      <div class='detail-container'>
+        <dl id="priceListParent">
+          <dt class="price">
+          </dt>
+          <dd class="priceDate">
+          </dd>
+        </dl>
+      </div>
+      <div class='detail-nav'>
+        <button class='close'>
+          Close
+        </button>
+      </div>
+    </div>
+  </main>
+  <!-- partial -->
+
+  <script>
+    let tableBody = document.querySelector('#row-parent');
+    function createTable() {
+      fetch('http://localhost:3000/renderdata')
+        .then((data) => {
+          return data.json()
+        })
+        .then((renderdata) => {
+          removeAllChildNodes(tableBody)
+          let games = renderdata.games;
+          let hashMap = renderdata.hashMap;
+
+          if(renderdata.parser === true){
+            alert('Цены загружаются')
+          }
+
+          games.forEach(game => {
+            let row = document.createElement('tr')
+            row.id = `row-${game.id}`
+
+            let gameid = document.createElement('td');
+            gameid.innerHTML = game.id
+            gameid.classList.add('csv')
+
+            let gameName = document.createElement('td');
+            gameName.id = `${game.id}-name`
+            gameName.innerHTML = game.name
+            gameName.classList.add('csv')
+
+            let lastPrice = document.createElement('td');
+            lastPrice.id = `${game.id}-lprice`
+            if (hashMap[game.id].length === 0) {
+              lastPrice.innerHTML = `Нужно спарсить цену`
+            }
+            else {
+              lastPrice.innerHTML = `${hashMap[game.id][0][1]}`
+            }
+            lastPrice.classList.add('csv')
+
+
+
+            let latestPrice = document.createElement('td');
+            latestPrice.id = `${game.id}-ltprice`
+            if (hashMap[game.id].length > 1) {
+              latestPrice.innerHTML = `${hashMap[game.id][1][1]}`
+            }
+            else {
+              latestPrice.innerHTML = `Новая в списке`
+            }
+            latestPrice.classList.add('csv')
+
+
+            let selectBtn = document.createElement('td');
+            selectBtn.classList.add('select');
+            let selectA = document.createElement('a');
+            selectA.innerText = 'Цены по датам';
+            selectA.classList.add('button');
+            selectA.addEventListener('click', showData);
+            selectA.id = `show-${game.id}`
+            selectA.href = '#';
+            selectBtn.appendChild(selectA);
+
+            let parseBtn = document.createElement('td');
+            parseBtn.classList.add('select');
+            let parseA = document.createElement('a');
+            parseA.innerText = 'Спарсить'
+            parseA.classList.add('parse-button');
+            parseA.addEventListener('click', parseOne)
+            parseA.id = `parse-${game.id}`
+            parseA.href = '#';
+            parseBtn.appendChild(parseA);
+
+            let storeBtn = document.createElement('td');
+            storeBtn.classList.add('select');
+            let storeA = document.createElement('a');
+            storeA.classList.add('store-button');
+            storeA.innerText = "PS Store"
+            storeA.id = `store-${game.id}`
+            storeA.href = `${game.link}`;
+            storeBtn.appendChild(storeA);
+
+            let deleteBtn = document.createElement('td');
+            deleteBtn.classList.add('select');
+            let deleteA = document.createElement('a');
+            deleteA.innerText = "Удалить"
+            deleteA.classList.add('delete-button');
+            deleteA.id = `delete-${game.id}`
+            deleteA.href = `#`;
+            deleteA.addEventListener('click', deleteGame)
+            deleteBtn.appendChild(deleteA);
+
+            row.appendChild(gameid)
+            row.appendChild(gameName);
+            row.appendChild(lastPrice);
+            row.appendChild(latestPrice);
+            row.appendChild(selectBtn);
+            row.appendChild(parseBtn);
+            row.appendChild(storeBtn);
+            row.appendChild(deleteBtn);
+
+            tableBody.appendChild(row)
+          });
+        })
+    }
+
+    createTable()
+
+
+  </script>
+  <script>
+    let addGameButton = document.querySelector('#add-game-button')
+
+    addGameButton.addEventListener('click', addGame);
+
+    async function addGame() {
+      let addGameInput = document.querySelector('#add-game-link')
+      let data = {
+        link: addGameInput.value
+      }
+      event.preventDefault()
+      if (!addGameInput.value) {
+        return alert('Впиши ссылку')
+      }
+      await fetch('http://localhost:3000/gameadd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      await createTable()
+      await removeAllChildNodes(document.querySelector('#priceListParent'))
+    }
+  </script>
+  <script>
+    let hashMap
+
+    let showDataBtns = document.querySelectorAll('.button');
+    showDataBtns.forEach(btn => {
+      btn.addEventListener('click', showData)
+    });
+
+    function removeAllChildNodes(parent) {
+      while (parent.firstChild) {
+        parent.removeChild(parent.firstChild);
+      }
+    }
+
+
+    async function showData(e) {
+      await fetch('http://localhost:3000/pricelist')
+        .then((data) => {
+          return data.json()
+        })
+        .then((jsoned) => {
+          hashMap = jsoned
+        })
+      let priceData = document.querySelector('.detail');
+      priceData.classList.add('open')
+      let gameId = e.target.id.replace('show-', '');
+      let parent = document.querySelector('#priceListParent')
+      removeAllChildNodes(parent);
+      hashMap[gameId].forEach(element => {
+        let price = document.createElement('dt');
+        let date = document.createElement('dd');
+        price.innerText = element[1];
+        date.innerText = element[0]
+        parent.appendChild(price);
+        parent.appendChild(date);
+      });
+    }
+  </script>
+  <script>
+    //  let parseOneBtn = document.querySelectorAll('.parse-button');
+    //  parseOneBtn.forEach(btn => {
+    //   btn.addEventListener('click', parseOne)
+    // });
+
+    async function parseOne(e) {
+      let gameId = { id: parseInt(e.target.id.replace('parse-', '')) };
+      await fetch('http://localhost:3000/parseone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(gameId),
+      })
+
+      await createTable()
+      await removeAllChildNodes(document.querySelector('#priceListParent'))
+    }
+  </script>
+  <script>
+    let parseAllBtn = document.querySelector('#parseallbutton');
+    parseAllBtn.addEventListener('click', parseAllfnc);
+    async function parseAllfnc(e) {
+      fetch('http://localhost:3000/parsealldata')
+        .then((data) => {
+          removeAllChildNodes(document.querySelector('#priceListParent'))
+          createTable()
+        })
+    }
+  </script>
+  <script>
+    let deleteAllPricesBtn = document.querySelector('#deletepricebutton')
+    deleteAllPricesBtn.addEventListener('click', deletePrices)
+    async function deletePrices(e) {
+      fetch('http://localhost:3000/deleteallprices')
+        .then((data) => {
+          alert('Все цены удалены')
+        })
+        .then((data2) => {
+          removeAllChildNodes(document.querySelector('#priceListParent'))
+          createTable()
+        })
+    }
+
+    let cleanDataBase = document.querySelector('#cleandatabase')
+    cleanDataBase.addEventListener('click', cleanDataBaseFnc)
+
+    async function cleanDataBaseFnc(e) {
+      fetch('http://localhost:3000/cleandatabase')
+        .then((data) => {
+          alert('База очищена')
+        })
+        .then((data2) => {
+          removeAllChildNodes(document.querySelector('#priceListParent'))
+          createTable()
+        })
+    }
+
+    async function deleteGame(e) {
+      let gameId = e.target.id.replace('delete-', '')
+      fetch('http://localhost:3000/deletegame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: gameId
+        }),
+      })
+      await removeAllChildNodes(document.querySelector('#priceListParent'))
+      await createTable()
+      await alert('Игра удалена')
+    }
+
+    async function getExcelFile() {
+      // Select rows from table_id
+      let rows = document.querySelectorAll('table#' + 'table' + ' tr');
+      // Construct csv
+      let csv = [];
+      for (let i = 0; i < rows.length; i++) {
+        let row = [], cols = rows[i].querySelectorAll('.csv');
+        for (let j = 0; j < cols.length; j++) {
+          // Clean innertext to remove multiple spaces and jumpline (break csv)
+          let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, '').replace(/(\s\s)/gm, ' ');
+          // Escape double-quote with double-double-quote (see https://stackoverflow.com/questions/17808511/properly-escape-a-double-quote-in-csv)
+          data = data.replace(/"/g, '""');
+          // Push escaped string
+          row.push('"' + data + '"');
+        }
+        csv.push(row.join(','));
+      }
+      let csv_string = csv.join('\n');
+      // Download it
+      let filename = 'export_' + table + '_' + new Date().toLocaleDateString() + '.csv';
+      let link = document.createElement('a');
+      link.style.display = 'none';
+      link.setAttribute('target', '_blank');
+      link.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv_string));
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    let getExcelBtn = document.querySelector('#excel');
+    getExcelBtn.addEventListener('click', getExcelFile)
+
+
+  </script>
+
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+  <script src="/script.js"></script>
+
+</body>
+
+</html>
